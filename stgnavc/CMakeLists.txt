@@ -15,3 +15,6 @@ add_library(stgnavc SHARED ${SOURCES} ${HEADERS})
 target_include_directories(stgnavc PUBLIC ${GST_INCLUDE_DIRS})
 target_link_libraries(stgnavc PUBLIC ${GST_LINK_LIBRARIES})
 target_compile_options(stgnavc PUBLIC ${GST_CFLAGS})
+
+include_directories("${CMAKE_SOURCE_DIR}\\stgnengn")
+target_link_libraries(stgnavc LINK_PUBLIC stgnengn)

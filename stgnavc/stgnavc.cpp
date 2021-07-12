@@ -1,3 +1,5 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <gst/gst.h>
 #include "stgnavc.h"
 
@@ -38,7 +40,7 @@ static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE("src",
 );
 
 #define gst_stgnavc_parent_class parent_class
-G_DEFINE_TYPE(GstStgnAVC, gst_stgnavc, GST_TYPE_BASE_TRANSFORM);
+G_DEFINE_TYPE(GstStgnAVC, gst_stgnavc, GST_TYPE_ELEMENT/*BASE_TRANSFORM*/);
 
 static void gst_stgnavc_finalize(GObject* object);
 static void gst_stgnavc_set_property(GObject* object, guint prop_id, const GValue* value, GParamSpec* pspec);
@@ -48,6 +50,8 @@ static GstStateChangeReturn gst_stgnavc_change_state(GstElement* element, GstSta
 static GstFlowReturn gst_stgnavc_sink_chain(GstPad* pad, GstObject* obj, GstBuffer* buffer);
 static gboolean gst_stgnavc_sink_event(GstPad* pad, GstObject* parent, GstEvent* event);
 static gboolean gst_stgnavc_src_event(GstPad* pad, GstObject* parent, GstEvent* event);
+
+FILE* f = fopen("Z:\\test.yuv", "wb");
 
 static void gst_stgnavc_class_init(GstStgnAVCClass* stgnclass)
 {
@@ -81,6 +85,16 @@ static void gst_stgnavc_class_init(GstStgnAVCClass* stgnclass)
 
 static void gst_stgnavc_init(GstStgnAVC* stgn)
 {
+    stgn->sinkpad = gst_pad_new_from_static_template(&sink_factory, "sink");
+
+    gst_pad_set_chain_function(stgn->sinkpad, gst_stgnavc_sink_chain);
+    gst_element_add_pad(GST_ELEMENT(stgn), stgn->sinkpad);
+    gst_pad_set_event_function(stgn->sinkpad, gst_stgnavc_sink_event);
+
+    stgn->srcpad = gst_pad_new_from_static_template(&src_factory, "src");
+    gst_element_add_pad(GST_ELEMENT(stgn), stgn->srcpad);
+    gst_pad_set_event_function(stgn->srcpad, gst_stgnavc_src_event);
+
     //Init engine here
 }
 
@@ -88,6 +102,7 @@ static void gst_stgnavc_finalize(GObject* object)
 {
     GstStgnAVC* stgn = GST_STGNAVC(object);
 
+    fclose(f);
     //Clear engine here
 }
 
@@ -156,12 +171,39 @@ static GstStateChangeReturn gst_stgnavc_change_state(GstElement* element, GstSta
 
 static GstFlowReturn gst_stgnavc_sink_chain(GstPad* pad, GstObject* obj, GstBuffer* buffer)
 {
-    return GST_FLOW_OK;
+    GstStgnAVC* stgn = GST_STGNAVC(obj);
+    //
+    //g_print("");
+    //int meta = gst_buffer_get_n_meta(buffer, GST_TYPE_ALLOCATION_PARAMS);
+    //GstMemory* memdat = gst_buffer_get_all_memory(buffer);
+
+    guint8* row_data = new guint8[gst_buffer_get_size(buffer)];
+
+    gsize result = gst_buffer_extract(buffer, 0, row_data, gst_buffer_get_size(buffer));
+    
+    fwrite(row_data, 1, gst_buffer_get_size(buffer), f);
+    fflush(f);
+
+    delete[] row_data;
+    return gst_pad_push(stgn->srcpad, buffer);
 }
 
 static gboolean gst_stgnavc_sink_event(GstPad* pad, GstObject* parent, GstEvent* event)
 {
-    return true;
+    GstStgnAVC* stgn = GST_STGNAVC(parent);
+
+    switch (GST_EVENT_TYPE(event)) {
+    case GST_EVENT_CAPS:
+        /* we should handle the format here */
+        break;
+    case GST_EVENT_EOS:
+        /* end-of-stream, we should close down all stream leftovers here */
+
+        break;
+    default:
+        break;
+        return gst_pad_event_default(pad, parent, event);
+    }
 }
 
 static gboolean gst_stgnavc_src_event(GstPad* pad, GstObject* parent, GstEvent* event)

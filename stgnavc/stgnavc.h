@@ -1,7 +1,8 @@
 #pragma once
 
 #include <gst/gst.h>
-#include <gst/base/gstbasetransform.h>
+#include <Windows.h>
+#include <stdio.h>
 
 #define VERSION "0.0.1"
 
@@ -18,14 +19,15 @@ typedef struct _GstStgnAVC      GstStgnAVC;
 
 struct _GstStgnAVC
 {
-    GstBaseTransform m_parent_struct;
+    GstElement element;
+    GstPad* sinkpad, * srcpad;
 
     //Engine here
 };
 
 struct _GstStgnAVCClass
 {
-    GstBaseTransformClass m_parent_class;
+    GstElementClass parent_class;
 };
 
 GType gst_stgnavc_get_type(void);

@@ -4,4 +4,5 @@ project("SteganoAVC" LANGUAGES C CXX)
 set( LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin )
 set( EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin )
 
+add_subdirectory(stgnengn)
 add_subdirectory(stgnavc)
