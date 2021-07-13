@@ -4,6 +4,8 @@
 #include <Windows.h>
 #include <stdio.h>
 
+#include "stgnengn.h"
+
 #define VERSION "0.0.1"
 
 G_BEGIN_DECLS
@@ -22,7 +24,7 @@ struct _GstStgnAVC
     GstElement element;
     GstPad* sinkpad, * srcpad;
 
-    //Engine here
+    StgnEngn engine;
 };
 
 struct _GstStgnAVCClass

@@ -172,10 +172,6 @@ static GstStateChangeReturn gst_stgnavc_change_state(GstElement* element, GstSta
 static GstFlowReturn gst_stgnavc_sink_chain(GstPad* pad, GstObject* obj, GstBuffer* buffer)
 {
     GstStgnAVC* stgn = GST_STGNAVC(obj);
-    //
-    //g_print("");
-    //int meta = gst_buffer_get_n_meta(buffer, GST_TYPE_ALLOCATION_PARAMS);
-    //GstMemory* memdat = gst_buffer_get_all_memory(buffer);
 
     guint8* row_data = new guint8[gst_buffer_get_size(buffer)];
 
@@ -192,9 +188,27 @@ static gboolean gst_stgnavc_sink_event(GstPad* pad, GstObject* parent, GstEvent*
 {
     GstStgnAVC* stgn = GST_STGNAVC(parent);
 
+    GstCaps* cap;
+    GstStructure* strct;
+    gchar* str_sruct;
+    const GValue* gframerate;
+
     switch (GST_EVENT_TYPE(event)) {
     case GST_EVENT_CAPS:
-        /* we should handle the format here */
+        GstCaps* caps;
+        gst_event_parse_caps(event, &caps);
+
+        strct = gst_caps_get_structure(caps, 0);
+        str_sruct = gst_structure_to_string(strct);
+
+        gst_structure_get(strct,
+            "format", G_TYPE_STRING, &(stgn->engine.m_in_metadata.m_color_format),
+            "width", G_TYPE_INT, &(stgn->engine.m_in_metadata.m_width),
+            "height", G_TYPE_INT, &(stgn->engine.m_in_metadata.m_height),
+            NULL);
+        gframerate = gst_structure_get_value(strct, "framerate");
+        stgn->engine.m_in_metadata.m_fps = 
+            (gfloat)(gframerate->data[0].v_int) / (gfloat)(gframerate->data[1].v_int);
         break;
     case GST_EVENT_EOS:
         /* end-of-stream, we should close down all stream leftovers here */
