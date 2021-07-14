@@ -24,7 +24,7 @@ struct _GstStgnAVC
     GstElement element;
     GstPad* sinkpad, * srcpad;
 
-    StgnEngn engine;
+    StgnEngn* m_engine;
 };
 
 struct _GstStgnAVCClass

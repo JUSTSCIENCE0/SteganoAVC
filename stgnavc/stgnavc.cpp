@@ -40,7 +40,7 @@ static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE("src",
 );
 
 #define gst_stgnavc_parent_class parent_class
-G_DEFINE_TYPE(GstStgnAVC, gst_stgnavc, GST_TYPE_ELEMENT/*BASE_TRANSFORM*/);
+G_DEFINE_TYPE(GstStgnAVC, gst_stgnavc, GST_TYPE_ELEMENT);
 
 static void gst_stgnavc_finalize(GObject* object);
 static void gst_stgnavc_set_property(GObject* object, guint prop_id, const GValue* value, GParamSpec* pspec);
@@ -50,8 +50,6 @@ static GstStateChangeReturn gst_stgnavc_change_state(GstElement* element, GstSta
 static GstFlowReturn gst_stgnavc_sink_chain(GstPad* pad, GstObject* obj, GstBuffer* buffer);
 static gboolean gst_stgnavc_sink_event(GstPad* pad, GstObject* parent, GstEvent* event);
 static gboolean gst_stgnavc_src_event(GstPad* pad, GstObject* parent, GstEvent* event);
-
-FILE* f = fopen("Z:\\test.yuv", "wb");
 
 static void gst_stgnavc_class_init(GstStgnAVCClass* stgnclass)
 {
@@ -96,14 +94,15 @@ static void gst_stgnavc_init(GstStgnAVC* stgn)
     gst_pad_set_event_function(stgn->srcpad, gst_stgnavc_src_event);
 
     //Init engine here
+    stgn->m_engine = new StgnEngn();
 }
 
 static void gst_stgnavc_finalize(GObject* object)
 {
     GstStgnAVC* stgn = GST_STGNAVC(object);
 
-    fclose(f);
     //Clear engine here
+    delete stgn->m_engine;
 }
 
 static void gst_stgnavc_set_property(GObject* object, guint prop_id, const GValue* value, GParamSpec* pspec)
@@ -177,8 +176,7 @@ static GstFlowReturn gst_stgnavc_sink_chain(GstPad* pad, GstObject* obj, GstBuff
 
     gsize result = gst_buffer_extract(buffer, 0, row_data, gst_buffer_get_size(buffer));
     
-    fwrite(row_data, 1, gst_buffer_get_size(buffer), f);
-    fflush(f);
+    stgn->m_engine->PutFrame(row_data, gst_buffer_get_size(buffer));
 
     delete[] row_data;
     return gst_pad_push(stgn->srcpad, buffer);
@@ -193,6 +191,11 @@ static gboolean gst_stgnavc_sink_event(GstPad* pad, GstObject* parent, GstEvent*
     gchar* str_sruct;
     const GValue* gframerate;
 
+    char*   color_format;
+    int     width;
+    int     height;
+    float   fps;
+
     switch (GST_EVENT_TYPE(event)) {
     case GST_EVENT_CAPS:
         GstCaps* caps;
@@ -202,13 +205,14 @@ static gboolean gst_stgnavc_sink_event(GstPad* pad, GstObject* parent, GstEvent*
         str_sruct = gst_structure_to_string(strct);
 
         gst_structure_get(strct,
-            "format", G_TYPE_STRING, &(stgn->engine.m_in_metadata.m_color_format),
-            "width", G_TYPE_INT, &(stgn->engine.m_in_metadata.m_width),
-            "height", G_TYPE_INT, &(stgn->engine.m_in_metadata.m_height),
+            "format", G_TYPE_STRING, &color_format,
+            "width", G_TYPE_INT, &width,
+            "height", G_TYPE_INT, &height,
             NULL);
         gframerate = gst_structure_get_value(strct, "framerate");
-        stgn->engine.m_in_metadata.m_fps = 
-            (gfloat)(gframerate->data[0].v_int) / (gfloat)(gframerate->data[1].v_int);
+        fps = (gfloat)(gframerate->data[0].v_int) / (gfloat)(gframerate->data[1].v_int);
+
+        stgn->m_engine->SetMetadata(color_format, width, height, fps);
         break;
     case GST_EVENT_EOS:
         /* end-of-stream, we should close down all stream leftovers here */
@@ -218,6 +222,8 @@ static gboolean gst_stgnavc_sink_event(GstPad* pad, GstObject* parent, GstEvent*
         break;
         return gst_pad_event_default(pad, parent, event);
     }
+
+    return TRUE;
 }
 
 static gboolean gst_stgnavc_src_event(GstPad* pad, GstObject* parent, GstEvent* event)
