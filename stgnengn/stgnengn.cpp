@@ -2,6 +2,17 @@
 
 #include "stgnengn.h"
 
+StgnEngn::StgnEngn()
+{
+    m_encode_thrd = std::thread(&StgnEngn::EncodeCycle, this);
+    m_encode_thrd.detach();
+}
+
+StgnEngn::~StgnEngn()
+{
+    m_is_stop = true;
+}
+
 STGNRES StgnEngn::SetMetadata(const char* subsampling, int width, int height, float fps)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -31,13 +42,14 @@ STGNRES StgnEngn::PutFrame(uint8_t* row_data, size_t size)
     RowFrameData frame(row_data, row_data + size);
     m_in_frames.push_back(frame);
 
-    if (m_in_frames.size() > STGN_MAX_BUFFER_IN)
+    //Delete data that does not fit into the buffer
+    if (m_in_frames.size() * check_size > STGN_MAX_BUFFER_IN)
     {
         m_in_frames.pop_front();
 
-#ifdef _DEBUG
+#ifdef WRITE_IN_FILE
         WriteBufferInFile("Z:\\test.yuv");
-#endif // _DEBUG
+#endif //WRITE_IN_FILE
     }
 
     return STGN_OK;
@@ -54,7 +66,29 @@ int StgnEngn::GetSampleSize(const char* subsampling)
     return STGN_FAIL;
 }
 
-#ifdef _DEBUG
+void StgnEngn::EncodeCycle()
+{
+    while (!m_is_stop)
+    {
+        STGNRES sr = EncodeProcess();
+#ifdef LOG_TO_STDOUT
+        PrintInfoInStd(sr);
+#endif //LOG_TO_STDOUT 
+        if (STGN_IS_FAILED(sr)) return;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
+STGNRES StgnEngn::EncodeProcess()
+{
+    if (m_in_frames.empty())
+        return STGN_IN_EMPTY;
+
+    return STGN_OK;
+}
+
+#ifdef WRITE_IN_FILE
 void StgnEngn::WriteBufferInFile(const char* fname)
 {
     if (!m_need_write) return;
@@ -70,4 +104,4 @@ void StgnEngn::WriteBufferInFile(const char* fname)
 
     fclose(f);
 }
-#endif // _DEBUG
+#endif // WRITE_IN_FILE
